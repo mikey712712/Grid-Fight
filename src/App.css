@@ -1,5 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Sono:wght@200;300;400;500;600;700&display=swap");
+
 html {
 	background-color: #77514c;
+	background-image: url("/public/pixelassets/background.png");
+}
+
+#root {
+	font-family: "Sono", sans-serif !important;
+	font-weight: 400;
 }
 
 .grid-box > * {
@@ -8,4 +16,13 @@ html {
 	padding: 6px;
 	height: 100%;
 	object-fit: cover;
+}
+
+button {
+	font-family: "Sono", sans-serif !important;
+	font-weight: 400;
+}
+
+.character.selected {
+	border: 2px solid black;
 }

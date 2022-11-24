@@ -1,35 +1,54 @@
-import { Box, Flex, Text } from "@chakra-ui/react"
-import { useState } from "react"
+import { Box, Button, Flex, Image, Input, Text } from "@chakra-ui/react"
+import { useEffect, useRef, useState } from "react"
+import { db } from "../App"
 import { Controls } from "./Controls"
 import { GridBox } from "./GridBox"
+import uniqid from "uniqid"
+import { onChildAdded, onValue, ref, set } from "firebase/database"
 
-export const Game = ({ tileIds }) => {
+export const knightData = {
+	name: "Knight",
+	health: 60,
+	moveEnergy: 2,
+	turnEnergy: 4,
+	weakness: 0,
+	attackDiscount: 0,
+	incomingDamageMulti: 1,
+	imgSrcs: ["/pixelassets/heroes/knight/knight_idle_anim_f0.png", "/pixelassets/heroes/knight/knight_idle_anim_f4.png"],
+}
+
+export const flyingMonsterData = {
+	name: "Flying Eyeball",
+	health: 50,
+	moveEnergy: 1,
+	turnEnergy: 4,
+	weakness: 0,
+	attackDiscount: 0,
+	incomingDamageMulti: 1,
+	imgSrcs: ["/pixelassets/enemies/flying_creature/fly_anim_f1.png", "/pixelassets/enemies/flying_creature/fly_anim_f2.png"],
+}
+
+export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 	const gridIds = [1, 2, 3, 4, 5, 6, 7, 8]
-	const knightData = {
-		name: "Knight",
-		health: 30,
-		moveEnergy: 2,
-		turnEnergy: 8,
-		damageMultiplier: 1,
-		attackDiscount: 0,
-		incomingDamageMulti: 1,
-		imgSrcs: ["/pixelassets/heroes/knight/knight_idle_anim_f0.png", "/pixelassets/heroes/knight/knight_idle_anim_f4.png"],
-	}
-	const flyingMonsterData = {
-		name: "Flying Eyeball",
-		health: 30,
-		moveEnergy: 1,
-		turnEnergy: 6,
-		damageMultiplier: 1,
-		attackDiscount: 0,
-		incomingDamageMulti: 1,
-		imgSrcs: ["/pixelassets/enemies/flying_creature/fly_anim_f1.png", "/pixelassets/enemies/flying_creature/fly_anim_f2.png"],
-	}
+	const [playerOneCharacter, setPlayerOneCharacter] = useState("")
+	const [playerTwoCharacter, setPlayerTwoCharacter] = useState("")
+	const playerOneCharacterRef = useRef({})
+	const playerTwoCharacterRef = useRef({})
+	playerOneCharacterRef.current = playerOneCharacter
+	playerTwoCharacterRef.current = playerTwoCharacter
 
-	const [playerOne, setPlayerOne] = useState({ position: { x: 1, y: 8 }, energy: 8, ...knightData })
-	const [playerTwo, setPlayerTwo] = useState({ position: { x: 8, y: 1 }, energy: 0, ...flyingMonsterData })
+	// const [playerOne, setPlayerOne] = useState({ position: { x: 1, y: 8 }, energy: 4, ...knightData })
+	// const [playerTwo, setPlayerTwo] = useState({ position: { x: 8, y: 1 }, energy: 0, ...flyingMonsterData })
+	const [playerOne, setPlayerOne] = useState(null)
+	const [playerTwo, setPlayerTwo] = useState(null)
+	const playerOneRef = useRef({})
+	const playerTwoRef = useRef({})
+	playerOneRef.current = playerOne
+	playerTwoRef.current = playerTwo
 
 	const [turn, setTurn] = useState(1)
+	const turnRef = useRef({})
+	turnRef.current = turn
 	const GridLine = ({ dataLineId }) => {
 		return (
 			<Flex>
@@ -40,26 +59,207 @@ export const Game = ({ tileIds }) => {
 		)
 	}
 
+	useEffect(() => {
+		const listenForCharacters = async () => {
+			if (gameMode === "onlinehost") {
+				const query = ref(db, "rooms/" + onlineRoomId + "/characterTwo")
+				return onValue(query, async (snapshot) => {
+					if (snapshot.exists()) {
+						if (snapshot.val().name) {
+							setTimeout(() => setPlayerTwoCharacter(snapshot.val().name), 0)
+							setTimeout(() => confirmPlayerTwoSelection(), 100)
+						}
+					}
+				})
+			} else if (gameMode === "onlinejoin") {
+				const query = ref(db, "rooms/" + onlineRoomId + "/characterOne")
+				return onValue(query, async (snapshot) => {
+					if (snapshot.exists()) {
+						if (snapshot.val().name) {
+							setTimeout(() => setPlayerOneCharacter(snapshot.val().name), 0)
+							setTimeout(() => confirmPlayerOneSelection(), 100)
+						}
+					}
+				})
+			}
+		}
+		if (gameMode === "onlinehost" || gameMode === "onlinejoin") {
+			listenForCharacters()
+		}
+	}, [onlineRoomId])
+
+	const confirmPlayerOneSelection = async () => {
+		if (playerOneCharacterRef.current === "Knight") {
+			setPlayerOne({ position: { x: 1, y: 8 }, energy: 4, ...knightData })
+			if (gameMode === "onlinehost") {
+				await set(ref(db, "rooms/" + onlineRoomId + "/characterOne"), {
+					name: "Knight",
+				})
+			}
+		} else if (playerOneCharacterRef.current === "Eye") {
+			setPlayerOne({ position: { x: 1, y: 8 }, energy: 4, ...flyingMonsterData })
+			if (gameMode === "onlinehost") {
+				await set(ref(db, "rooms/" + onlineRoomId + "/characterOne"), {
+					name: "Eye",
+				})
+			}
+		}
+	}
+
+	const confirmPlayerTwoSelection = async () => {
+		if (playerTwoCharacterRef.current === "Knight") {
+			setPlayerTwo({ position: { x: 8, y: 1 }, energy: 4, ...knightData })
+			if (gameMode === "onlinejoin") {
+				await set(ref(db, "rooms/" + onlineRoomId + "/characterTwo"), {
+					name: "Knight",
+				})
+			}
+		} else if (playerTwoCharacterRef.current === "Eye") {
+			setPlayerTwo({ position: { x: 8, y: 1 }, energy: 4, ...flyingMonsterData })
+			if (gameMode === "onlinejoin") {
+				await set(ref(db, "rooms/" + onlineRoomId + "/characterTwo"), {
+					name: "Eye",
+				})
+			}
+		}
+	}
+
 	return (
-		<Flex w="100vw" flexFlow={"column nowrap"}>
+		<Flex w="100vw" flexFlow={"column nowrap"} color={"white"}>
 			<Flex w="100%" justify={"space-between"} boxSizing={"border-box"} p="20px">
-				<Box w="10vw">
-					<Text>{playerOne.name}</Text>
-					<Text>Health: {playerOne.health}</Text>
-					<Text>Energy: {playerOne.energy}</Text>
+				<Box boxSizing="border-box" p="20px" bgColor="rgba(76,119,81,0.7)" backdropFilter={"blur(4px)"} w="330px" fontSize={"1.3em"}>
+					{playerOne ? (
+						<>
+							<Text fontSize={"1.5em"}>{playerOne.name}</Text>
+							<Text marginBottom={"5px"}>
+								Health: <strong>{playerOne.health}</strong>
+							</Text>
+							<Text marginBottom={"5px"} marginTop={"5px"}>
+								Energy: <strong>{playerOne.energy}</strong>
+							</Text>
+							<Text marginTop={"5px"}>
+								Movement Cost: <strong>{playerOne.moveEnergy}</strong>
+							</Text>
+						</>
+					) : gameMode === "onlinehost" ? (
+						<>
+							<Image
+								w="64px"
+								h="64px"
+								bgColor={"white"}
+								p="4px"
+								m="4px"
+								borderRadius={"4px"}
+								border={"1px solid grey"}
+								className={playerOneCharacter === "Knight" ? "character selected" : "character"}
+								src={knightData.imgSrcs[0]}
+								onClick={() => setPlayerOneCharacter("Knight")}
+							/>
+							<Image
+								w="64px"
+								h="64px"
+								bgColor={"white"}
+								p="4px"
+								m="4px"
+								borderRadius={"4px"}
+								border={"1px solid grey"}
+								className={playerOneCharacter === "Eye" ? "character selected" : "character"}
+								src={flyingMonsterData.imgSrcs[0]}
+								onClick={() => setPlayerOneCharacter("Eye")}
+							/>
+							<Button onClick={confirmPlayerOneSelection}>Confirm Selection</Button>
+						</>
+					) : null}
 				</Box>
-				<Flex border="2px solid black" flexFlow={"column nowrap"}>
-					{gridIds.map((id) => (
-						<GridLine key={id} dataLineId={id} />
-					))}
-				</Flex>
-				<Box textAlign={"right"} w="10vw">
-					<Text>{playerTwo.name}</Text>
-					<Text>Health: {playerTwo.health}</Text>
-					<Text>Energy: {playerTwo.energy}</Text>
+				{playerOne && playerTwo ? (
+					<Flex position={"relative"} border="2px solid black" flexFlow={"column nowrap"}>
+						<Box
+							opacity={"0"}
+							transitionTimingFunction={"linear"}
+							id="eyeshot"
+							position={"absolute"}
+							borderRadius="4px"
+							w="8px"
+							h="8px"
+							bgColor={"red"}
+						></Box>
+						<Box
+							opacity={"0"}
+							transitionTimingFunction={"linear"}
+							id="bigeyeshot"
+							position={"absolute"}
+							borderRadius="8px"
+							w="16px"
+							h="16px"
+							bgColor={"darkred"}
+						></Box>
+						{gridIds.map((id) => (
+							<GridLine key={id} dataLineId={id} />
+						))}
+					</Flex>
+				) : null}
+				<Box boxSizing="border-box" p="20px" bgColor="rgba(76,119,81,0.7)" backdropFilter={"blur(4px)"} fontSize={"1.3em"} w="330px">
+					{playerTwo ? (
+						<>
+							<Text fontSize={"1.5em"}>{playerTwo.name}</Text>
+							<Text marginBottom={"5px"}>
+								Health: <strong>{playerTwo.health}</strong>
+							</Text>
+							<Text marginBottom={"5px"} marginTop={"5px"}>
+								Energy: <strong>{playerTwo.energy}</strong>
+							</Text>
+							<Text marginTop={"5px"}>
+								Movement Cost: <strong>{playerTwo.moveEnergy}</strong>
+							</Text>
+						</>
+					) : gameMode === "onlinejoin" ? (
+						<>
+							<Image
+								w="64px"
+								h="64px"
+								bgColor={"white"}
+								p="4px"
+								m="4px"
+								borderRadius={"4px"}
+								border={"1px solid grey"}
+								className={playerTwoCharacter === "Knight" ? "character selected" : "character"}
+								src={knightData.imgSrcs[0]}
+								onClick={() => setPlayerTwoCharacter("Knight")}
+							/>
+							<Image
+								w="64px"
+								h="64px"
+								bgColor={"white"}
+								p="4px"
+								m="4px"
+								borderRadius={"4px"}
+								border={"1px solid grey"}
+								className={playerTwoCharacter === "Eye" ? "character selected" : "character"}
+								src={flyingMonsterData.imgSrcs[0]}
+								onClick={() => setPlayerTwoCharacter("Eye")}
+							/>
+							<Button onClick={confirmPlayerTwoSelection}>Confirm Selection</Button>
+						</>
+					) : null}
 				</Box>
 			</Flex>
-			<Controls playerOne={playerOne} playerTwo={playerTwo} setPlayerOne={setPlayerOne} setPlayerTwo={setPlayerTwo} turn={turn} setTurn={setTurn} />
+			{playerOne && playerTwo ? (
+				<Controls
+					setGameMode={setGameMode}
+					playerOneRef={playerOneRef}
+					playerTwoRef={playerTwoRef}
+					setPlayerOne={setPlayerOne}
+					setPlayerTwo={setPlayerTwo}
+					turnRef={turnRef}
+					setTurn={setTurn}
+					onlineRoomId={onlineRoomId}
+					gameMode={gameMode}
+				/>
+			) : (
+				<Flex justify={"center"} alignItems={"center"} position={"absolute"} bottom={"0"} left="0" w="100vw" h="300px" bgColor="rgba(119,81,76,0.7)">
+					<Text>Room ID:{` ${onlineRoomId}`}</Text>
+				</Flex>
+			)}
 		</Flex>
 	)
 }
