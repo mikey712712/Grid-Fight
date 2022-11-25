@@ -83,12 +83,13 @@ export const Controls = ({
 										energy: playerTwoRef.current.energy - playerTwoRef.current.moveEnergy,
 									})
 								}
+								await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 							} else if (move === "endturn1" && gameMode === "onlinejoin") {
 								await endTurn()
-								console.log("the", move)
+								await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 							} else if (move === "endturn2" && gameMode === "onlinehost") {
-								console.log("the", move)
 								await endTurn()
+								await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 							} else if (move === "attack") {
 								if (data.attackName === "slash") {
 									knightSlash(data.targets)
@@ -105,12 +106,13 @@ export const Controls = ({
 								} else if (data.attackName === "bigeyeshoot") {
 									bigEyeShoot()
 								}
+								await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 							} else if (move === "ability") {
 								if (data.abilityName === "lightarmor") {
 									knightLight()
 								}
+								await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 							}
-							// await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 						}
 					}
 				}, 100)
@@ -589,15 +591,15 @@ export const Controls = ({
 	}
 
 	const previewKnightLight = () => {
-		if (turnRef.current === 1 && playerOneRef.current.energy >= 6) {
+		if (turnRef.current === 1 && playerOneRef.current.energy >= 2) {
 			document.querySelector("#player-one").style.filter = "invert(20%) sepia(90%) saturate(1130%) hue-rotate(168deg) brightness(100%) contrast(83%)"
-		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 6) {
+		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 2) {
 			document.querySelector("#player-two").style.filter = "invert(20%) sepia(90%) saturate(1130%) hue-rotate(168deg) brightness(100%) contrast(83%)"
 		}
 	}
 
 	const knightLight = async () => {
-		if (turnRef.current === 1 && playerOneRef.current.energy >= 6) {
+		if (turnRef.current === 1 && playerOneRef.current.energy >= 2) {
 			setBlocked(true)
 			if (gameMode === "onlinehost") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
@@ -635,13 +637,13 @@ export const Controls = ({
 						},
 					],
 				})
-				await setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - 6 })
+				await setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - 2 })
 			}, 200)
 			setTimeout(() => {
 				setBlocked(false)
 				document.querySelector("#player-one").style.filter = "unset"
 			}, 500)
-		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 6) {
+		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 2) {
 			setBlocked(true)
 			if (gameMode === "onlinejoin") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
@@ -679,7 +681,7 @@ export const Controls = ({
 						},
 					],
 				})
-				setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.energy - 6 })
+				setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.energy - 2 })
 			}, 200)
 			setTimeout(() => {
 				setBlocked(false)
@@ -1202,6 +1204,10 @@ export const Controls = ({
 		setWinner(null)
 		setPlayerOne(null)
 		setPlayerTwo(null)
+		if (gameMode === "onlinehost" || gameMode === "onlinejoin") {
+			remove(ref(db, "rooms/" + onlineRoomId + "/characterOne"))
+			remove(ref(db, "rooms/" + onlineRoomId + "/characterTwo"))
+		}
 	}
 
 	const cancelGame = () => {
@@ -1463,13 +1469,13 @@ export const Controls = ({
 											h="170px"
 										>
 											<Text boxSizing="border-box" p="5px" w="200px" whiteSpace={"normal"}>
-												<strong>Light Armor (6 energy)</strong>
+												<strong>Light Armor (2 energy)</strong>
 												<br />
 												For this turn and the next 2 turns, all movements and attacks cost 1 less energy. Incoming attacks deal double
 												damage while light armor is active.
 											</Text>
 										</Box>
-										Light Armor (6)
+										Light Armor (2)
 									</Button>
 									<Button
 										bgColor="rgba(76,119,81,0.7)"
@@ -1742,7 +1748,9 @@ export const Controls = ({
 										: "#4974a5"
 								}
 								onClick={(event) => {
-									event.target.disabled = true
+									if (gameMode !== "local") {
+										event.target.disabled = true
+									}
 									endTurn()
 								}}
 								fontWeight="600"

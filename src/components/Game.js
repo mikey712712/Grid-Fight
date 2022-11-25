@@ -172,7 +172,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId, setOnlineRo
 							borderRadius="8px"
 							w="16px"
 							h="16px"
-							bgColor={"blue"}
+							bgColor="aqua"
 						></Box>
 						{gridIds.map((id) => (
 							<GridLine key={id} dataLineId={id} />
