@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Heading, Input } from "@chakra-ui/react"
+import { Box, Button, Flex, Heading, Input, Text } from "@chakra-ui/react"
 import uniqid from "uniqid"
 import { onDisconnect, ref, set, remove, get } from "firebase/database"
 import { db } from "../App"
@@ -6,6 +6,7 @@ import { useState } from "react"
 export const Home = ({ gameMode, setGameMode, setOnlineRoomId }) => {
 	const [joinScreen, setJoinScreen] = useState(false)
 	const [joinRoomField, setJoinRoomField] = useState("")
+	const [joinRoomError, setJoinRoomError] = useState(null)
 	const onlineHost = () => {
 		setGameMode("onlinehost")
 		const roomId = uniqid()
@@ -25,11 +26,16 @@ export const Home = ({ gameMode, setGameMode, setOnlineRoomId }) => {
 		if (roomData.exists()) {
 			setGameMode("onlinejoin")
 			setOnlineRoomId(roomId)
+		} else {
+			setJoinRoomError("Room ID not found")
 		}
 	}
 
 	const handleRoomChange = (event) => {
 		setJoinRoomField(event.target.value)
+		if (joinRoomError) {
+			setJoinRoomError(null)
+		}
 	}
 
 	return (
@@ -55,9 +61,19 @@ export const Home = ({ gameMode, setGameMode, setOnlineRoomId }) => {
 				{joinScreen ? (
 					<>
 						<form onSubmit={joinRoom}>
-							<Input type="text" value={joinRoomField} onChange={handleRoomChange} placeholder="Room ID" />
-							<Button type="submit">Join</Button>
-							<Button onClick={() => setJoinScreen(false)}>Cancel</Button>
+							<Input margin="0 5px" type="text" required value={joinRoomField} onChange={handleRoomChange} placeholder="Room ID" />
+							<Button margin="0 5px" type="submit">
+								Join
+							</Button>
+							<Button margin="0 5px" onClick={() => setJoinScreen(false)}>
+								Cancel
+							</Button>
+							<br />
+							{joinRoomError ? (
+								<Text color={"red"} fontSize={"1.1em"}>
+									{joinRoomError}
+								</Text>
+							) : null}
 						</form>
 					</>
 				) : (

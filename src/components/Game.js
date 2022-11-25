@@ -6,26 +6,27 @@ import { GridBox } from "./GridBox"
 import uniqid from "uniqid"
 import { onChildAdded, onValue, ref, set } from "firebase/database"
 
-export const knightData = {
-	name: "Knight",
-	health: 60,
-	moveEnergy: 2,
-	turnEnergy: 4,
-	weakness: 0,
-	attackDiscount: 0,
-	incomingDamageMulti: 1,
-	imgSrcs: ["/pixelassets/heroes/knight/knight_idle_anim_f0.png", "/pixelassets/heroes/knight/knight_idle_anim_f4.png"],
-}
-
-export const flyingMonsterData = {
-	name: "Flying Eyeball",
-	health: 50,
-	moveEnergy: 1,
-	turnEnergy: 4,
-	weakness: 0,
-	attackDiscount: 0,
-	incomingDamageMulti: 1,
-	imgSrcs: ["/pixelassets/enemies/flying_creature/fly_anim_f1.png", "/pixelassets/enemies/flying_creature/fly_anim_f2.png"],
+export const characterData = {
+	Knight: {
+		name: "Knight",
+		health: 60,
+		moveEnergy: 2,
+		turnEnergy: 4,
+		weakness: 0,
+		attackDiscount: 0,
+		incomingDamageMulti: 1,
+		imgSrcs: ["/pixelassets/heroes/knight/knight_idle_anim_f0.png", "/pixelassets/heroes/knight/knight_idle_anim_f4.png"],
+	},
+	Eye: {
+		name: "Flying Eyeball",
+		health: 50,
+		moveEnergy: 1,
+		turnEnergy: 4,
+		weakness: 0,
+		attackDiscount: 0,
+		incomingDamageMulti: 1,
+		imgSrcs: ["/pixelassets/enemies/flying_creature/fly_anim_f1.png", "/pixelassets/enemies/flying_creature/fly_anim_f2.png"],
+	},
 }
 
 export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
@@ -37,8 +38,6 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 	playerOneCharacterRef.current = playerOneCharacter
 	playerTwoCharacterRef.current = playerTwoCharacter
 
-	// const [playerOne, setPlayerOne] = useState({ position: { x: 1, y: 8 }, energy: 4, ...knightData })
-	// const [playerTwo, setPlayerTwo] = useState({ position: { x: 8, y: 1 }, energy: 0, ...flyingMonsterData })
 	const [playerOne, setPlayerOne] = useState(null)
 	const [playerTwo, setPlayerTwo] = useState(null)
 	const playerOneRef = useRef({})
@@ -89,38 +88,20 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 	}, [onlineRoomId])
 
 	const confirmPlayerOneSelection = async () => {
-		if (playerOneCharacterRef.current === "Knight") {
-			setPlayerOne({ position: { x: 1, y: 8 }, energy: 4, ...knightData })
-			if (gameMode === "onlinehost") {
-				await set(ref(db, "rooms/" + onlineRoomId + "/characterOne"), {
-					name: "Knight",
-				})
-			}
-		} else if (playerOneCharacterRef.current === "Eye") {
-			setPlayerOne({ position: { x: 1, y: 8 }, energy: 4, ...flyingMonsterData })
-			if (gameMode === "onlinehost") {
-				await set(ref(db, "rooms/" + onlineRoomId + "/characterOne"), {
-					name: "Eye",
-				})
-			}
+		setPlayerOne({ position: { x: 1, y: 8 }, energy: 4, ...characterData[playerOneCharacterRef.current] })
+		if (gameMode === "onlinehost") {
+			await set(ref(db, "rooms/" + onlineRoomId + "/characterOne"), {
+				name: playerOneCharacterRef.current,
+			})
 		}
 	}
 
 	const confirmPlayerTwoSelection = async () => {
-		if (playerTwoCharacterRef.current === "Knight") {
-			setPlayerTwo({ position: { x: 8, y: 1 }, energy: 4, ...knightData })
-			if (gameMode === "onlinejoin") {
-				await set(ref(db, "rooms/" + onlineRoomId + "/characterTwo"), {
-					name: "Knight",
-				})
-			}
-		} else if (playerTwoCharacterRef.current === "Eye") {
-			setPlayerTwo({ position: { x: 8, y: 1 }, energy: 4, ...flyingMonsterData })
-			if (gameMode === "onlinejoin") {
-				await set(ref(db, "rooms/" + onlineRoomId + "/characterTwo"), {
-					name: "Eye",
-				})
-			}
+		setPlayerTwo({ position: { x: 8, y: 1 }, energy: 4, ...characterData[playerTwoCharacterRef.current] })
+		if (gameMode === "onlinejoin") {
+			await set(ref(db, "rooms/" + onlineRoomId + "/characterTwo"), {
+				name: playerTwoCharacterRef.current,
+			})
 		}
 	}
 
@@ -141,7 +122,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 								Movement Cost: <strong>{playerOne.moveEnergy}</strong>
 							</Text>
 						</>
-					) : gameMode === "onlinehost" ? (
+					) : gameMode === "onlinehost" || gameMode === "local" ? (
 						<>
 							<Image
 								w="64px"
@@ -152,7 +133,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 								borderRadius={"4px"}
 								border={"1px solid grey"}
 								className={playerOneCharacter === "Knight" ? "character selected" : "character"}
-								src={knightData.imgSrcs[0]}
+								src={characterData.Knight.imgSrcs[0]}
 								onClick={() => setPlayerOneCharacter("Knight")}
 							/>
 							<Image
@@ -164,7 +145,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 								borderRadius={"4px"}
 								border={"1px solid grey"}
 								className={playerOneCharacter === "Eye" ? "character selected" : "character"}
-								src={flyingMonsterData.imgSrcs[0]}
+								src={characterData.Eye.imgSrcs[0]}
 								onClick={() => setPlayerOneCharacter("Eye")}
 							/>
 							<Button onClick={confirmPlayerOneSelection}>Confirm Selection</Button>
@@ -212,7 +193,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 								Movement Cost: <strong>{playerTwo.moveEnergy}</strong>
 							</Text>
 						</>
-					) : gameMode === "onlinejoin" ? (
+					) : gameMode === "onlinejoin" || gameMode === "local" ? (
 						<>
 							<Image
 								w="64px"
@@ -223,7 +204,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 								borderRadius={"4px"}
 								border={"1px solid grey"}
 								className={playerTwoCharacter === "Knight" ? "character selected" : "character"}
-								src={knightData.imgSrcs[0]}
+								src={characterData.Knight.imgSrcs[0]}
 								onClick={() => setPlayerTwoCharacter("Knight")}
 							/>
 							<Image
@@ -235,7 +216,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 								borderRadius={"4px"}
 								border={"1px solid grey"}
 								className={playerTwoCharacter === "Eye" ? "character selected" : "character"}
-								src={flyingMonsterData.imgSrcs[0]}
+								src={characterData.Eye.imgSrcs[0]}
 								onClick={() => setPlayerTwoCharacter("Eye")}
 							/>
 							<Button onClick={confirmPlayerTwoSelection}>Confirm Selection</Button>

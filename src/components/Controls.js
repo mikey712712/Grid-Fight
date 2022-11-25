@@ -2,7 +2,7 @@ import { Box, Button, Flex, Grid, Image, Text } from "@chakra-ui/react"
 import { child, onValue, push, ref, remove, set, onChildAdded } from "firebase/database"
 import { useEffect, useRef, useState } from "react"
 import { db } from "../App"
-import { flyingMonsterData, knightData } from "./Game"
+import { characterData } from "./Game"
 
 export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTwo, turnRef, setTurn, setGameMode, onlineRoomId, gameMode }) => {
 	const [targetedSquares, setTargetedSquares] = useState([])
@@ -58,7 +58,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					if (move) {
 						console.log(move)
 						if (move === "move") {
-							console.log(turnRef.current)
 							if (turnRef.current === 1) {
 								await setPlayerOne({
 									...playerOneRef.current,
@@ -81,6 +80,8 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 								knightPierce(data.targets)
 							} else if (data.attackName === "lifedrain") {
 								lifeDrain(data.targets)
+							} else if (data.attackName === "wingslap") {
+								wingSlap(data.targets)
 							} else if (data.attackName === "bigjump") {
 								knightJump()
 							} else if (data.attackName === "eyeshoot") {
@@ -104,10 +105,12 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 		if (playerOneRef.current.health <= 0) {
 			setTimeout(() => {
 				setWinner("2")
+				setTurn(1)
 			}, 200)
 		} else if (playerTwoRef.current.health <= 0) {
 			setTimeout(() => {
 				setWinner("1")
+				setTurn(2)
 			}, 200)
 		}
 	}, [playerOneRef.current, playerTwoRef.current])
@@ -128,7 +131,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			await setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.turnEnergy })
 			setAbilities({ ...abilityRef.current, playerTwo: playerTwoAbilities.filter((e) => e.turns > 0), playerOne: [...playerOneAbilities] })
 			if (playerOneRef.current.turnEnergy < 12) {
-				await setPlayerOne({ ...playerOneRef.current, turnEnergy: playerOneRef.current.turnEnergy + 1 })
+				await setPlayerOne({ ...playerOneRef.current, energy: 0, turnEnergy: playerOneRef.current.turnEnergy + 1 })
 			}
 			await setTurn(2)
 		} else if (turnRef.current === 2) {
@@ -146,7 +149,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			await setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.turnEnergy })
 			setAbilities({ ...abilityRef.current, playerOne: playerOneAbilities.filter((e) => e.turns > 0), playerTwo: [...playerTwoAbilities] })
 			if (playerTwoRef.current.turnEnergy < 12) {
-				await setPlayerTwo({ ...playerTwoRef.current, turnEnergy: playerTwoRef.current.turnEnergy + 1 })
+				await setPlayerTwo({ ...playerTwoRef.current, energy: 0, turnEnergy: playerTwoRef.current.turnEnergy + 1 })
 			}
 			await setTurn(1)
 		}
@@ -520,8 +523,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				await setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - (2 - playerOneRef.current.attackDiscount) })
 				setBlocked(false)
 			}, 400)
-		}
-		if (turnRef.current === 2 && playerTwoRef.current.energy >= 2 - playerOneRef.current.attackDiscount) {
+		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 2 - playerTwoRef.current.attackDiscount) {
 			let targets
 			if (gameMode === "onlinejoin") {
 				targets = [...targetRef.current]
@@ -563,6 +565,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					}
 				}
 				await setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.energy - (2 - playerTwoRef.current.attackDiscount) })
+				setBlocked(false)
 			}, 400)
 		}
 	}
@@ -748,11 +751,13 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
 					name: "attack",
-					abilityName: "bigjump",
+					attackName: "bigjump",
 				})
 			}
 			setBlocked(true)
-			document.querySelector("#player-two").style.filter = "invert(7%) sepia(68%) saturate(7056%) hue-rotate(359deg) brightness(96%) contrast(118%)"
+			setTimeout(() => {
+				document.querySelector("#player-two").style.filter = "invert(7%) sepia(68%) saturate(7056%) hue-rotate(359deg) brightness(96%) contrast(118%)"
+			}, 50)
 			setTimeout(async () => {
 				if (playerOneRef.current.position["x"] < 8) {
 					await setPlayerTwo({
@@ -770,16 +775,16 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			}, 800)
 
 			setTimeout(() => {
-				document.querySelector("#player-one").style.top = "-30px"
 				document.querySelector("#player-two").style.top = "-30px"
+				document.querySelector("#player-one").style.top = "-30px"
 			}, 1000)
 			setTimeout(() => {
-				document.querySelector("#player-one").style.top = "0"
 				document.querySelector("#player-two").style.top = "0"
+				document.querySelector("#player-one").style.top = "0"
 				document.querySelector("#player-two").style.filter = "unset"
 				document.querySelector("#player-one").style.filter = "invert(7%) sepia(68%) saturate(7056%) hue-rotate(359deg) brightness(96%) contrast(118%)"
 			}, 1200)
-			setTimeout(() => {
+			setTimeout(async () => {
 				setBlocked(false)
 				document.querySelector("#player-one").style.filter = "unset"
 				setAbilities({
@@ -794,7 +799,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 						},
 					],
 				})
-				setPlayerOne({
+				await setPlayerOne({
 					...playerOneRef.current,
 					health: playerOneRef.current.health - (20 - playerTwoRef.current.weakness) * playerOneRef.current.incomingDamageMulti,
 				})
@@ -818,7 +823,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			eyeShotDiv.style.top = `${24 + (playerOneRef.current.position["y"] - 1) * 48}px`
 			eyeShotDiv.style.left = `${24 + (playerOneRef.current.position["x"] - 1) * 48}px`
 			setTimeout(() => {
-				eyeShotDiv.style.transition = "800ms"
+				eyeShotDiv.style.transition = "500ms"
 				eyeShotDiv.style.top = `${24 + (playerTwoRef.current.position["y"] - 1) * 48}px`
 				eyeShotDiv.style.left = `${24 + (playerTwoRef.current.position["x"] - 1) * 48}px`
 			}, 50)
@@ -826,7 +831,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				setBlocked(false)
 				eyeShotDiv.style.opacity = "0"
 				document.querySelector("#player-two").style.filter = "brightness(70%)"
-			}, 800)
+			}, 550)
 			setTimeout(async () => {
 				document.querySelector("#player-two").style.filter = "unset"
 				await setPlayerTwo({
@@ -834,7 +839,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					health: playerTwoRef.current.health - (1 - playerOneRef.current.weakness) * playerTwoRef.current.incomingDamageMulti,
 				})
 				await setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - 1 })
-			}, 900)
+			}, 650)
 		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 1) {
 			if (gameMode === "onlinejoin") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
@@ -850,7 +855,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			eyeShotDiv.style.top = `${24 + (playerTwoRef.current.position["y"] - 1) * 48}px`
 			eyeShotDiv.style.left = `${24 + (playerTwoRef.current.position["x"] - 1) * 48}px`
 			setTimeout(() => {
-				eyeShotDiv.style.transition = "800ms"
+				eyeShotDiv.style.transition = "500ms"
 				eyeShotDiv.style.top = `${24 + (playerOneRef.current.position["y"] - 1) * 48}px`
 				eyeShotDiv.style.left = `${24 + (playerOneRef.current.position["x"] - 1) * 48}px`
 			}, 50)
@@ -858,7 +863,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				setBlocked(false)
 				eyeShotDiv.style.opacity = "0"
 				document.querySelector("#player-one").style.filter = "brightness(70%)"
-			}, 800)
+			}, 550)
 			setTimeout(async () => {
 				document.querySelector("#player-one").style.filter = "unset"
 				await setPlayerOne({
@@ -866,7 +871,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					health: playerOneRef.current.health - (1 - playerTwoRef.current.weakness) * playerOneRef.current.incomingDamageMulti,
 				})
 				await setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.energy - 1 })
-			}, 900)
+			}, 650)
 		}
 	}
 
@@ -903,11 +908,11 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			}, 900)
 			setTimeout(async () => {
 				document.querySelector("#player-two").style.filter = "unset"
-				await setPlayerOne({
+				await setPlayerTwo({
 					...playerTwoRef.current,
 					health: playerTwoRef.current.health - (9 - playerOneRef.current.weakness) * playerTwoRef.current.incomingDamageMulti,
 				})
-				await setPlayerTwo({ ...playerOneRef.current, energy: playerOneRef.current.energy - 7 })
+				await setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - 7 })
 				setAbilities({
 					...abilityRef.current,
 					playerTwo: [
@@ -998,11 +1003,25 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 		setTargetedSquares(targets)
 	}
 
-	const wingSlap = () => {
+	const wingSlap = async (targetData) => {
 		if (turnRef.current === 1 && playerOneRef.current.energy >= 2) {
+			let targets
+			setBlocked(true)
+			if (gameMode === "onlinehost") {
+				targets = [...targetRef.current]
+				const newMove = push(ref(db, "rooms/" + onlineRoomId))
+				await set(newMove, {
+					name: "attack",
+					attackName: "wingslap",
+					targets: targets,
+				})
+			} else if (gameMode === "onlinejoin") {
+				targets = targetData
+			} else if (gameMode === "local") {
+				targets = [...targetRef.current]
+			}
 			setTimeout(() => {
 				document.querySelector("#player-one").style.left = "10px"
-				setBlocked(true)
 			}, 0)
 			setTimeout(() => {
 				document.querySelector("#player-one").style.left = "0"
@@ -1011,42 +1030,65 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				document.querySelector("#player-two").style.left = "0"
 				setBlocked(false)
 			}, 200)
-			const targets = targetedSquares
-			for (let target of targets) {
-				if (target["x"] === playerTwoRef.current.position["x"] && target["y"] === playerTwoRef.current.position["y"]) {
-					setPlayerTwo({
-						...playerTwoRef.current,
-						health: playerTwoRef.current.health - (4 - playerOneRef.current.weakness) * playerTwoRef.current.incomingDamageMulti,
-					})
-					setTimeout(() => (document.querySelector("#player-two").style.filter = "brightness(70%)"), 0)
-					setTimeout(() => (document.querySelector("#player-two").style.filter = "unset"), 100)
+			setTimeout(() => {
+				for (let target of targets) {
+					if (target["x"] === playerTwoRef.current.position["x"] && target["y"] === playerTwoRef.current.position["y"]) {
+						setPlayerTwo({
+							...playerTwoRef.current,
+							health: playerTwoRef.current.health - (4 - playerOneRef.current.weakness) * playerTwoRef.current.incomingDamageMulti,
+						})
+						setTimeout(() => (document.querySelector("#player-two").style.filter = "brightness(70%)"), 0)
+						setTimeout(() => (document.querySelector("#player-two").style.filter = "unset"), 100)
+						setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - 2 })
+						setBlocked(false)
+						return
+					}
 				}
 				setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - 2 })
-			}
+				setBlocked(false)
+			}, 300)
 		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 2) {
+			let targets
+			setBlocked(true)
+			if (gameMode === "onlinejoin") {
+				targets = [...targetRef.current]
+				const newMove = push(ref(db, "rooms/" + onlineRoomId))
+				await set(newMove, {
+					name: "attack",
+					attackName: "wingslap",
+					targets: targets,
+				})
+			} else if (gameMode === "onlinehost") {
+				targets = targetData
+			} else if (gameMode === "local") {
+				targets = [...targetRef.current]
+			}
 			setTimeout(() => {
 				document.querySelector("#player-two").style.left = "10px"
-				setBlocked(true)
 			}, 0)
 			setTimeout(() => {
 				document.querySelector("#player-two").style.left = "0"
 			}, 100)
 			setTimeout(() => {
 				document.querySelector("#player-two").style.left = "0"
-				setBlocked(false)
 			}, 200)
-			const targets = targetedSquares
-			for (let target of targets) {
-				if (target["x"] === playerOneRef.current.position["x"] && target["y"] === playerOneRef.current.position["y"]) {
-					setPlayerOne({
-						...playerOneRef.current,
-						health: playerOneRef.current.health - (4 - playerTwoRef.current.weakness) * playerOneRef.current.incomingDamageMulti,
-					})
-					setTimeout(() => (document.querySelector("#player-one").style.filter = "brightness(70%)"), 0)
-					setTimeout(() => (document.querySelector("#player-one").style.filter = "unset"), 100)
+			setTimeout(() => {
+				for (let target of targets) {
+					if (target["x"] === playerOneRef.current.position["x"] && target["y"] === playerOneRef.current.position["y"]) {
+						setPlayerOne({
+							...playerOneRef.current,
+							health: playerOneRef.current.health - (4 - playerTwoRef.current.weakness) * playerOneRef.current.incomingDamageMulti,
+						})
+						setTimeout(() => (document.querySelector("#player-one").style.filter = "brightness(70%)"), 0)
+						setTimeout(() => (document.querySelector("#player-one").style.filter = "unset"), 100)
+						setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.energy - 2 })
+						setBlocked(false)
+						return
+					}
+					setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.energy - 2 })
+					setBlocked(false)
 				}
-				setPlayerTwo({ ...playerTwoRef.current, energy: playerTwoRef.current.energy - 2 })
-			}
+			}, 300)
 		}
 	}
 
@@ -1140,14 +1182,14 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const restartGame = () => {
 		setWinner(null)
-		setPlayerOne({ position: { x: 1, y: 8 }, energy: 4, ...knightData })
-		setPlayerTwo({ position: { x: 8, y: 1 }, energy: 4, ...flyingMonsterData })
+		setPlayerOne(null)
+		setPlayerTwo(null)
 	}
 
 	const cancelGame = () => {
 		setWinner(null)
-		setPlayerOne({ position: { x: 1, y: 8 }, energy: 4, ...knightData })
-		setPlayerTwo({ position: { x: 8, y: 1 }, energy: 4, ...flyingMonsterData })
+		setPlayerOne(null)
+		setPlayerTwo(null)
 		setGameMode(null)
 	}
 
