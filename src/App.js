@@ -31,7 +31,7 @@ function App() {
 	return (
 		<Box h="100vh" w="fit-content" boxSizing="border-box" p="30px auto">
 			{gameMode ? (
-				<Game onlineRoomId={onlineRoomId} gameMode={gameMode} setGameMode={setGameMode} tileIds={tileIds} />
+				<Game onlineRoomId={onlineRoomId} gameMode={gameMode} setGameMode={setGameMode} tileIds={tileIds} setOnlineRoomId={setOnlineRoomId} />
 			) : (
 				<Home setOnlineRoomId={setOnlineRoomId} setGameMode={setGameMode} />
 			)}

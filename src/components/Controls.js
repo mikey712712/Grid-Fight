@@ -4,7 +4,18 @@ import { useEffect, useRef, useState } from "react"
 import { db } from "../App"
 import { characterData } from "./Game"
 
-export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTwo, turnRef, setTurn, setGameMode, onlineRoomId, gameMode }) => {
+export const Controls = ({
+	setOnlineRoomId,
+	playerOneRef,
+	playerTwoRef,
+	setPlayerOne,
+	setPlayerTwo,
+	turnRef,
+	setTurn,
+	setGameMode,
+	onlineRoomId,
+	gameMode,
+}) => {
 	const [targetedSquares, setTargetedSquares] = useState([])
 	const targetRef = useRef({})
 	targetRef.current = targetedSquares
@@ -46,57 +57,63 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			const query = ref(db, "rooms/" + onlineRoomId)
 
 			return onChildAdded(query, async (snapshot) => {
-				const data = snapshot.val()
-				const dataKey = snapshot.ref._path.pieces_[2]
-				if (
-					((turnRef.current === 2 && gameMode === "onlinehost") || (turnRef.current === 1 && gameMode === "onlinejoin")) &&
-					dataKey !== "roomId" &&
-					dataKey !== "characterOne" &&
-					dataKey !== "characterTwo"
-				) {
-					const move = data.name
-					if (move) {
-						console.log(move)
-						if (move === "move") {
-							if (turnRef.current === 1) {
-								await setPlayerOne({
-									...playerOneRef.current,
-									position: { x: data.position.x, y: data.position.y },
-									energy: playerOneRef.current.energy - playerOneRef.current.moveEnergy,
-								})
-							} else if (turnRef.current === 2) {
-								await setPlayerTwo({
-									...playerTwoRef.current,
-									position: { x: data.position.x, y: data.position.y },
-									energy: playerTwoRef.current.energy - playerTwoRef.current.moveEnergy,
-								})
+				setTimeout(async () => {
+					const data = snapshot.val()
+					const dataKey = snapshot.ref._path.pieces_[2]
+					if (
+						((turnRef.current === 2 && gameMode === "onlinehost") || (turnRef.current === 1 && gameMode === "onlinejoin")) &&
+						dataKey !== "roomId" &&
+						dataKey !== "characterOne" &&
+						dataKey !== "characterTwo"
+					) {
+						const move = data.name
+						if (move) {
+							console.log(move)
+							if (move === "move") {
+								if (turnRef.current === 1) {
+									await setPlayerOne({
+										...playerOneRef.current,
+										position: { x: data.position.x, y: data.position.y },
+										energy: playerOneRef.current.energy - playerOneRef.current.moveEnergy,
+									})
+								} else if (turnRef.current === 2) {
+									await setPlayerTwo({
+										...playerTwoRef.current,
+										position: { x: data.position.x, y: data.position.y },
+										energy: playerTwoRef.current.energy - playerTwoRef.current.moveEnergy,
+									})
+								}
+							} else if (move === "endturn1" && gameMode === "onlinejoin") {
+								await endTurn()
+								console.log("the", move)
+							} else if (move === "endturn2" && gameMode === "onlinehost") {
+								console.log("the", move)
+								await endTurn()
+							} else if (move === "attack") {
+								if (data.attackName === "slash") {
+									knightSlash(data.targets)
+								} else if (data.attackName === "pierce") {
+									knightPierce(data.targets)
+								} else if (data.attackName === "lifedrain") {
+									lifeDrain(data.targets)
+								} else if (data.attackName === "wingslap") {
+									wingSlap(data.targets)
+								} else if (data.attackName === "bigjump") {
+									knightJump()
+								} else if (data.attackName === "eyeshoot") {
+									eyeShoot()
+								} else if (data.attackName === "bigeyeshoot") {
+									bigEyeShoot()
+								}
+							} else if (move === "ability") {
+								if (data.abilityName === "lightarmor") {
+									knightLight()
+								}
 							}
-						} else if (move === "endturn") {
-							await endTurn()
-						} else if (move === "attack") {
-							if (data.attackName === "slash") {
-								knightSlash(data.targets)
-							} else if (data.attackName === "pierce") {
-								knightPierce(data.targets)
-							} else if (data.attackName === "lifedrain") {
-								lifeDrain(data.targets)
-							} else if (data.attackName === "wingslap") {
-								wingSlap(data.targets)
-							} else if (data.attackName === "bigjump") {
-								knightJump()
-							} else if (data.attackName === "eyeshoot") {
-								eyeShoot()
-							} else if (data.attackName === "bigeyeshoot") {
-								bigEyeShoot()
-							}
-						} else if (move === "ability") {
-							if (data.abilityName === "lightarmor") {
-								knightLight()
-							}
+							// await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 						}
-						await remove(ref(db, "rooms/" + onlineRoomId + "/" + dataKey))
 					}
-				}
+				}, 100)
 			})
 		}
 	}, [onlineRoomId])
@@ -116,11 +133,12 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 	}, [playerOneRef.current, playerTwoRef.current])
 
 	const endTurn = async () => {
+		console.log("ending turn")
 		if (turnRef.current === 1) {
 			if (gameMode === "onlinehost") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
-					name: "endturn",
+					name: "endturn1",
 				})
 			}
 			const playerOneAbilities = abilityRef.current.playerOne
@@ -138,7 +156,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			if (gameMode === "onlinejoin") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
-					name: "endturn",
+					name: "endturn2",
 				})
 			}
 			const playerTwoAbilities = abilityRef.current.playerTwo
@@ -363,6 +381,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const knightSlash = async (targetData) => {
 		if (turnRef.current === 1 && playerOneRef.current.energy >= 4 - playerOneRef.current.attackDiscount) {
+			setBlocked(true)
 			let targets
 			if (gameMode === "onlinehost") {
 				targets = [...targetRef.current]
@@ -379,7 +398,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			}
 			setTimeout(() => {
 				document.querySelector("#player-one").style.left = "10px"
-				setBlocked(true)
 			}, 0)
 			setTimeout(() => {
 				document.querySelector("#player-one").style.left = "0"
@@ -406,6 +424,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			}, 400)
 		}
 		if (turnRef.current === 2 && playerTwoRef.current.energy >= 4 - playerOneRef.current.attackDiscount) {
+			setBlocked(true)
 			let targets
 			if (gameMode === "onlinejoin") {
 				targets = [...targetRef.current]
@@ -422,7 +441,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			}
 			setTimeout(() => {
 				document.querySelector("#player-two").style.left = "10px"
-				setBlocked(true)
 			}, 0)
 			setTimeout(() => {
 				document.querySelector("#player-two").style.left = "0"
@@ -480,6 +498,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const knightPierce = async (targetData) => {
 		if (turnRef.current === 1 && playerOneRef.current.energy >= 2 - playerOneRef.current.attackDiscount) {
+			setBlocked(true)
 			let targets
 			if (gameMode === "onlinehost") {
 				targets = [...targetRef.current]
@@ -496,7 +515,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			}
 			setTimeout(() => {
 				document.querySelector("#player-one").style.left = "10px"
-				setBlocked(true)
 			}, 0)
 			setTimeout(() => {
 				document.querySelector("#player-one").style.left = "0"
@@ -524,6 +542,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				setBlocked(false)
 			}, 400)
 		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 2 - playerTwoRef.current.attackDiscount) {
+			setBlocked(true)
 			let targets
 			if (gameMode === "onlinejoin") {
 				targets = [...targetRef.current]
@@ -540,7 +559,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 			}
 			setTimeout(() => {
 				document.querySelector("#player-two").style.left = "10px"
-				setBlocked(true)
 			}, 0)
 			setTimeout(() => {
 				document.querySelector("#player-two").style.left = "0"
@@ -580,6 +598,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const knightLight = async () => {
 		if (turnRef.current === 1 && playerOneRef.current.energy >= 6) {
+			setBlocked(true)
 			if (gameMode === "onlinehost") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -587,7 +606,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					abilityName: "lightarmor",
 				})
 			}
-			setBlocked(true)
 			setTimeout(() => {
 				document.querySelector("#player-one").style.filter =
 					"invert(10%) sepia(90%) saturate(1130%) hue-rotate(168deg) brightness(250%) contrast(83%) blur(2px)"
@@ -624,6 +642,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				document.querySelector("#player-one").style.filter = "unset"
 			}, 500)
 		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 6) {
+			setBlocked(true)
 			if (gameMode === "onlinejoin") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -631,7 +650,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					abilityName: "lightarmor",
 				})
 			}
-			setBlocked(true)
 			setTimeout(() => {
 				document.querySelector("#player-two").style.filter =
 					"invert(10%) sepia(90%) saturate(1130%) hue-rotate(168deg) brightness(250%) contrast(83%) blur(2px)"
@@ -689,6 +707,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const knightJump = async () => {
 		if (turnRef.current === 1 && playerOneRef.current.energy >= 10 - playerOneRef.current.attackDiscount) {
+			setBlocked(true)
 			if (gameMode === "onlinehost") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -696,7 +715,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					attackName: "bigjump",
 				})
 			}
-			setBlocked(true)
 			setTimeout(() => {
 				document.querySelector("#player-one").style.filter = "invert(7%) sepia(68%) saturate(7056%) hue-rotate(359deg) brightness(96%) contrast(118%)"
 			}, 50)
@@ -747,6 +765,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				})
 			}, 1300)
 		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 10 - playerTwoRef.current.attackDiscount) {
+			setBlocked(true)
 			if (gameMode === "onlinejoin") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -754,7 +773,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					attackName: "bigjump",
 				})
 			}
-			setBlocked(true)
 			setTimeout(() => {
 				document.querySelector("#player-two").style.filter = "invert(7%) sepia(68%) saturate(7056%) hue-rotate(359deg) brightness(96%) contrast(118%)"
 			}, 50)
@@ -809,6 +827,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const eyeShoot = async () => {
 		if (turnRef.current === 1 && playerOneRef.current.energy >= 1) {
+			setBlocked(true)
 			if (gameMode === "onlinehost") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -816,7 +835,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					attackName: "eyeshoot",
 				})
 			}
-			setBlocked(true)
 			const eyeShotDiv = document.querySelector("#eyeshot")
 			eyeShotDiv.style.transition = "0ms"
 			eyeShotDiv.style.opacity = "1"
@@ -841,6 +859,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				await setPlayerOne({ ...playerOneRef.current, energy: playerOneRef.current.energy - 1 })
 			}, 650)
 		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 1) {
+			setBlocked(true)
 			if (gameMode === "onlinejoin") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -848,7 +867,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					attackName: "eyeshoot",
 				})
 			}
-			setBlocked(true)
 			const eyeShotDiv = document.querySelector("#eyeshot")
 			eyeShotDiv.style.transition = "0ms"
 			eyeShotDiv.style.opacity = "1"
@@ -877,6 +895,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const bigEyeShoot = async () => {
 		if (turnRef.current === 1 && playerOneRef.current.energy >= 7) {
+			setBlocked(true)
 			if (gameMode === "onlinehost") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -884,7 +903,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					attackName: "bigeyeshoot",
 				})
 			}
-			setBlocked(true)
 			const eyeShotDiv = document.querySelector("#bigeyeshot")
 			eyeShotDiv.style.transition = "0ms"
 			eyeShotDiv.style.opacity = "1"
@@ -927,6 +945,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 				})
 			}, 950)
 		} else if (turnRef.current === 2 && playerTwoRef.current.energy >= 7) {
+			setBlocked(true)
 			if (gameMode === "onlinejoin") {
 				const newMove = push(ref(db, "rooms/" + onlineRoomId))
 				await set(newMove, {
@@ -934,7 +953,6 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 					attackName: "bigeyeshoot",
 				})
 			}
-			setBlocked(true)
 			const eyeShotDiv = document.querySelector("#bigeyeshot")
 			eyeShotDiv.style.transition = "0ms"
 			eyeShotDiv.style.opacity = "1"
@@ -1188,6 +1206,7 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 
 	const cancelGame = () => {
 		setWinner(null)
+		setOnlineRoomId(null)
 		setPlayerOne(null)
 		setPlayerTwo(null)
 		setGameMode(null)
@@ -1722,7 +1741,10 @@ export const Controls = ({ playerOneRef, playerTwoRef, setPlayerOne, setPlayerTw
 										? "red"
 										: "#4974a5"
 								}
-								onClick={endTurn}
+								onClick={(event) => {
+									event.target.disabled = true
+									endTurn()
+								}}
 								fontWeight="600"
 								fontSize={"1em"}
 								color={

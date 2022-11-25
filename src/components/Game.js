@@ -29,7 +29,7 @@ export const characterData = {
 	},
 }
 
-export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
+export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId, setOnlineRoomId }) => {
 	const gridIds = [1, 2, 3, 4, 5, 6, 7, 8]
 	const [playerOneCharacter, setPlayerOneCharacter] = useState("")
 	const [playerTwoCharacter, setPlayerTwoCharacter] = useState("")
@@ -172,7 +172,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 							borderRadius="8px"
 							w="16px"
 							h="16px"
-							bgColor={"darkred"}
+							bgColor={"blue"}
 						></Box>
 						{gridIds.map((id) => (
 							<GridLine key={id} dataLineId={id} />
@@ -235,6 +235,7 @@ export const Game = ({ tileIds, setGameMode, gameMode, onlineRoomId }) => {
 					setTurn={setTurn}
 					onlineRoomId={onlineRoomId}
 					gameMode={gameMode}
+					setOnlineRoomId={setOnlineRoomId}
 				/>
 			) : (
 				<Flex justify={"center"} alignItems={"center"} position={"absolute"} bottom={"0"} left="0" w="100vw" h="300px" bgColor="rgba(119,81,76,0.7)">
